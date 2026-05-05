@@ -15,6 +15,6 @@ public class GameService {
 
     public Game JoinGame(String PlayerId){
 
-        return  new Game(0);
+        return  new Game();
     }
 }
