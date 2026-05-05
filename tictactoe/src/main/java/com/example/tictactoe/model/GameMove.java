@@ -1,4 +1,8 @@
 package com.example.tictactoe.model;
 
-public class GameMove {
+public record GameMove(
+        String gameId, 
+        int x,         // Fila
+        int y          // Columna
+) {
 }
