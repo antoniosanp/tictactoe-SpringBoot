@@ -1,20 +1,100 @@
 package com.example.tictactoe.service;
 
 import com.example.tictactoe.model.Game;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.tictactoe.model.GameMove;
+import com.example.tictactoe.model.Player;
+import com.example.tictactoe.model.GameStatus;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GameService {
 
-    private  final Map<String, Game> games = new ConcurrentHashMap<>();
+    // Almacén de partidas en memoria
+    private final Map<String, Game> games = new ConcurrentHashMap<>();
 
-    public Game JoinGame(String PlayerId){
-
-        return  new Game();
+    /**
+     * Crea una nueva instancia de Game y la registra en el mapa.
+     */
+    public Game createGame(Player player) {
+        Game game = new Game();
+        game.setPlayerX(player);
+        game.setStatus(GameStatus.WAITING_FOR_PLAYER);
+        games.put(game.getGameId(), game);
+        return game;
     }
+
+    /**
+     * Permite a un segundo jugador unirse a una partida existente.
+     */
+    public Game joinGame(String gameId, Player player) throws Exception {
+        Game game = games.get(gameId);
+        if (game == null) throw new Exception("La partida no existe");
+        if (game.getPlayerO() != null) throw new Exception("La partida ya está llena");
+
+        game.setPlayerO(player);
+        game.setStatus(GameStatus.IN_PROGRESS);
+        return game;
+    }
+
+    public Game makeMove(GameMove move, String sessionId) throws Exception {
+        Game game = games.get(move.gameId());
+
+        if (game == null || game.getStatus() != GameStatus.IN_PROGRESS) {
+            throw new Exception("Movimiento no permitido: partida no válida o no iniciada");
+        }
+
+        // Determinar qué jugador está intentando mover
+        Player currentPlayer = (game.getCurrentTurn() == 1) ? game.getPlayerX() : game.getPlayerO();
+
+        // Validación de seguridad por SessionId
+        if (!currentPlayer.getSessionId().equals(sessionId)) {
+            throw new Exception("No es tu turno");
+        }
+
+        // Validación de la celda
+        if (game.getBoard()[move.x()][move.y()] != 0) {
+            throw new Exception("La casilla ya está ocupada");
+        }
+
+        // Aplicar movimiento
+        game.getBoard()[move.x()][move.y()] = game.getCurrentTurn();
+
+        // Verificar victoria o empate
+        if (checkWinner(game.getBoard(), game.getCurrentTurn())) {
+            game.setStatus(GameStatus.FINISHED);
+            // Aquí podrías añadir lógica para marcar quién ganó
+        } else if (isBoardFull(game.getBoard())) {
+            game.setStatus(GameStatus.FINISHED);
+        } else {
+            // Cambiar turno: si era 1 pasa a 2, si era 2 pasa a 1
+            game.setCurrentTurn(game.getCurrentTurn() == 1 ? 2 : 1);
+        }
+
+        return game;
+    }
+
+    private boolean checkWinner(int[][] board, int mark) {
+        // Comprobar filas, columnas y diagonales
+        for (int i = 0; i < 3; i++) {
+            if (board[i][0] == mark && board[i][1] == mark && board[i][2] == mark) return true;
+            if (board[0][i] == mark && board[1][i] == mark && board[2][i] == mark) return true;
+        }
+        if (board[0][0] == mark && board[1][1] == mark && board[2][2] == mark) return true;
+        if (board[0][2] == mark && board[1][1] == mark && board[2][0] == mark) return true;
+
+        return false;
+    }
+
+    private boolean isBoardFull(int[][] board) {
+        for (int[] row : board) {
+            for (int cell : row) {
+                if (cell == 0) return false;
+            }
+        }
+        return true;
+    }
+
 }
