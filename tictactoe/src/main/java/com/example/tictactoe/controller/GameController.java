@@ -4,10 +4,14 @@ import com.example.tictactoe.model.Game;
 import com.example.tictactoe.model.GameMove;
 import com.example.tictactoe.model.Player;
 import com.example.tictactoe.service.GameService;
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.annotation.SendToUser;
+import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.stereotype.Controller;
 
 import java.util.Map;
@@ -28,6 +32,13 @@ public class GameController {
         // El sessionId es vital para identificar al jugador en el Service
         player.setSessionId(headerAccessor.getSessionId());
         Game game = gameService.createGame(player);
+
+        messagingTemplate.convertAndSendToUser(
+                headerAccessor.getSessionId(),
+                "/queue/game-created",
+                game,
+                createHeaders(headerAccessor.getSessionId())
+        );
 
         // Notificamos al creador sobre la partida creada
         messagingTemplate.convertAndSend("/topic/game-progress/" + game.getGameId(), game);
@@ -62,5 +73,18 @@ public class GameController {
 
         // Publicamos el estado actualizado a TODOS los suscritos a esa partida
         messagingTemplate.convertAndSend("/topic/game-progress/" + updatedGame.getGameId(), updatedGame);
+    }
+
+    @MessageExceptionHandler
+    @SendToUser("/queue/errors")
+    public Map<String, String> handleException(Exception exception) {
+        return Map.of("message", exception.getMessage());
+    }
+
+    private MessageHeaders createHeaders(String sessionId) {
+        SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+        headerAccessor.setSessionId(sessionId);
+        headerAccessor.setLeaveMutable(true);
+        return headerAccessor.getMessageHeaders();
     }
 }

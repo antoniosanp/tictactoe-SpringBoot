@@ -19,9 +19,11 @@ public class GameService {
      * Crea una nueva instancia de Game y la registra en el mapa.
      */
     public Game createGame(Player player) {
+        player.setMark(1);
         Game game = new Game();
         game.setPlayerX(player);
         game.setStatus(GameStatus.WAITING_FOR_PLAYER);
+        game.setMessage("Esperando a que se una el jugador O");
         games.put(game.getGameId(), game);
         return game;
     }
@@ -34,8 +36,10 @@ public class GameService {
         if (game == null) throw new Exception("La partida no existe");
         if (game.getPlayerO() != null) throw new Exception("La partida ya está llena");
 
+        player.setMark(2);
         game.setPlayerO(player);
         game.setStatus(GameStatus.IN_PROGRESS);
+        game.setMessage("Turno de " + game.getPlayerX().getName() + " (X)");
         return game;
     }
 
@@ -65,15 +69,26 @@ public class GameService {
         // Verificar victoria o empate
         if (checkWinner(game.getBoard(), game.getCurrentTurn())) {
             game.setStatus(GameStatus.FINISHED);
-            // Aquí podrías añadir lógica para marcar quién ganó
+            game.setWinnerMark(game.getCurrentTurn());
+            game.setWinnerName(currentPlayer.getName());
+            game.setMessage("Ganó " + currentPlayer.getName() + " (" + markToSymbol(game.getCurrentTurn()) + ")");
         } else if (isBoardFull(game.getBoard())) {
             game.setStatus(GameStatus.FINISHED);
+            game.setWinnerMark(0);
+            game.setWinnerName(null);
+            game.setMessage("Empate");
         } else {
             // Cambiar turno: si era 1 pasa a 2, si era 2 pasa a 1
             game.setCurrentTurn(game.getCurrentTurn() == 1 ? 2 : 1);
+            Player nextPlayer = game.getCurrentTurn() == 1 ? game.getPlayerX() : game.getPlayerO();
+            game.setMessage("Turno de " + nextPlayer.getName() + " (" + markToSymbol(game.getCurrentTurn()) + ")");
         }
 
         return game;
+    }
+
+    private String markToSymbol(int mark) {
+        return mark == 1 ? "X" : "O";
     }
 
     private boolean checkWinner(int[][] board, int mark) {

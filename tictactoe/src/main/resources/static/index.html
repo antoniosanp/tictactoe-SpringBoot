@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --border: #d8deea;
+            --text: #18212f;
+            --muted: #5f6b7a;
+            --accent: #0f766e;
+            --accent-strong: #115e59;
+            --danger: #b42318;
+            --danger-bg: #fef3f2;
+            --success-bg: #ecfdf3;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        main {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+
+        h1, h2 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+        p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr);
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        label {
+            display: grid;
+            gap: 6px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        button {
+            border: 0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--accent);
+            color: #fff;
+        }
+
+        button:hover {
+            background: var(--accent-strong);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .secondary {
+            background: #e7edf5;
+            color: var(--text);
+        }
+
+        .secondary:hover {
+            background: #d8e2ef;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .status-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            background: #e8f7f1;
+            color: #0f5132;
+        }
+
+        .badge.offline {
+            background: #f2f4f7;
+            color: #475467;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(88px, 120px));
+            gap: 8px;
+            justify-content: start;
+        }
+
+        .cell {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fbfcfe;
+            color: var(--text);
+            font-size: 42px;
+            font-weight: 700;
+        }
+
+        .cell:hover:not(:disabled) {
+            background: #f1f7ff;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .info-item {
+            display: grid;
+            gap: 4px;
+        }
+
+        .info-item strong {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .info-item span {
+            word-break: break-word;
+            font-size: 14px;
+        }
+
+        .message {
+            min-height: 44px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #f8fafc;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .message.error {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .message.success {
+            background: var(--success-bg);
+            color: #166534;
+        }
+
+        .log {
+            min-height: 180px;
+            max-height: 240px;
+            overflow: auto;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #fcfdff;
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        @media (max-width: 860px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .game-grid {
+                grid-template-columns: repeat(3, minmax(72px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <div class="stack">
+        <h1>Tic Tac Toe</h1>
+        <p>Cliente de prueba para crear salas, unirse y jugar sobre tus endpoints STOMP.</p>
+    </div>
+
+    <div class="layout">
+        <section class="stack">
+            <div class="panel stack">
+                <div class="status-line">
+                    <h2>Conexion</h2>
+                    <span id="connectionBadge" class="badge offline">Desconectado</span>
+                </div>
+                <div class="actions">
+                    <button id="connectBtn" type="button">Conectar</button>
+                    <button id="disconnectBtn" type="button" class="secondary">Desconectar</button>
+                </div>
+            </div>
+
+            <div class="panel stack">
+                <h2>Crear sala</h2>
+                <label>
+                    Nombre jugador X
+                    <input id="createName" type="text" placeholder="Ej. Antonio" maxlength="30">
+                </label>
+                <button id="createBtn" type="button">Crear partida</button>
+            </div>
+
+            <div class="panel stack">
+                <h2>Unirse a sala</h2>
+                <label>
+                    Nombre jugador O
+                    <input id="joinName" type="text" placeholder="Ej. Laura" maxlength="30">
+                </label>
+                <label>
+                    Game ID
+                    <input id="joinGameId" type="text" placeholder="Pega aqui el gameId">
+                </label>
+                <button id="joinBtn" type="button">Unirse</button>
+            </div>
+        </section>
+
+        <section class="stack">
+            <div class="panel stack">
+                <div class="status-line">
+                    <h2>Partida</h2>
+                    <button id="copyGameIdBtn" type="button" class="secondary">Copiar Game ID</button>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>Game ID</strong>
+                        <span id="gameIdValue">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Estado</strong>
+                        <span id="statusValue">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Jugador X</strong>
+                        <span id="playerXValue">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Jugador O</strong>
+                        <span id="playerOValue">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Tu marca</strong>
+                        <span id="myMarkValue">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Turno actual</strong>
+                        <span id="turnValue">-</span>
+                    </div>
+                </div>
+
+                <div id="messageBox" class="message">Conectate para empezar.</div>
+
+                <div class="game-grid" id="board"></div>
+            </div>
+
+            <div class="panel stack">
+                <h2>Eventos</h2>
+                <div id="log" class="log"></div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+    const state = {
+        stompClient: null,
+        connected: false,
+        currentGame: null,
+        gameSubscription: null,
+        myMark: null
+    };
+
+    const elements = {
+        connectionBadge: document.getElementById("connectionBadge"),
+        connectBtn: document.getElementById("connectBtn"),
+        disconnectBtn: document.getElementById("disconnectBtn"),
+        createBtn: document.getElementById("createBtn"),
+        joinBtn: document.getElementById("joinBtn"),
+        copyGameIdBtn: document.getElementById("copyGameIdBtn"),
+        createName: document.getElementById("createName"),
+        joinName: document.getElementById("joinName"),
+        joinGameId: document.getElementById("joinGameId"),
+        gameIdValue: document.getElementById("gameIdValue"),
+        statusValue: document.getElementById("statusValue"),
+        playerXValue: document.getElementById("playerXValue"),
+        playerOValue: document.getElementById("playerOValue"),
+        myMarkValue: document.getElementById("myMarkValue"),
+        turnValue: document.getElementById("turnValue"),
+        messageBox: document.getElementById("messageBox"),
+        log: document.getElementById("log"),
+        board: document.getElementById("board")
+    };
+
+    function initBoard() {
+        elements.board.innerHTML = "";
+        for (let row = 0; row < 3; row += 1) {
+            for (let col = 0; col < 3; col += 1) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "cell";
+                button.dataset.row = String(row);
+                button.dataset.col = String(col);
+                button.addEventListener("click", () => makeMove(row, col));
+                elements.board.appendChild(button);
+            }
+        }
+        renderBoard();
+    }
+
+    function connect() {
+        if (state.connected) {
+            return;
+        }
+
+        const socket = new SockJS("/game-websocket");
+        state.stompClient = Stomp.over(socket);
+        state.stompClient.debug = () => {};
+
+        state.stompClient.connect({}, () => {
+            state.connected = true;
+            setConnectionBadge(true);
+            showMessage("Conexion establecida.", "success");
+            appendLog("Conectado al broker.");
+
+            state.stompClient.subscribe("/user/queue/game-created", (message) => {
+                const game = JSON.parse(message.body);
+                state.myMark = 1;
+                subscribeToGame(game.gameId);
+                updateGame(game);
+                elements.joinGameId.value = game.gameId;
+                appendLog("Partida creada: " + game.gameId);
+            });
+
+            state.stompClient.subscribe("/user/queue/errors", (message) => {
+                const payload = JSON.parse(message.body);
+                showMessage(payload.message || "Ocurrio un error.", "error");
+                appendLog("Error: " + (payload.message || "sin detalle"));
+            });
+        }, () => {
+            state.connected = false;
+            setConnectionBadge(false);
+            showMessage("No fue posible conectar con el WebSocket.", "error");
+            appendLog("Fallo de conexion.");
+        });
+    }
+
+    function disconnect() {
+        if (state.gameSubscription) {
+            state.gameSubscription.unsubscribe();
+            state.gameSubscription = null;
+        }
+
+        if (state.stompClient) {
+            state.stompClient.disconnect(() => {
+                appendLog("Conexion cerrada.");
+            });
+        }
+
+        state.stompClient = null;
+        state.connected = false;
+        state.currentGame = null;
+        state.myMark = null;
+        setConnectionBadge(false);
+        resetGameView();
+        showMessage("Desconectado.", "");
+    }
+
+    function createGame() {
+        const playerName = elements.createName.value.trim();
+        if (!validateConnected() || !playerName) {
+            showMessage("Ingresa el nombre del jugador X.", "error");
+            return;
+        }
+
+        state.myMark = 1;
+        state.stompClient.send("/app/create", {}, JSON.stringify({
+            name: playerName
+        }));
+        appendLog("Solicitud de creacion enviada para " + playerName + ".");
+    }
+
+    function joinGame() {
+        const playerName = elements.joinName.value.trim();
+        const gameId = elements.joinGameId.value.trim();
+
+        if (!validateConnected() || !playerName || !gameId) {
+            showMessage("Ingresa nombre y gameId para unirte.", "error");
+            return;
+        }
+
+        state.myMark = 2;
+        subscribeToGame(gameId);
+        state.stompClient.send("/app/join", {}, JSON.stringify({
+            gameId,
+            playerName
+        }));
+        appendLog("Solicitud para unirse a " + gameId + " como " + playerName + ".");
+    }
+
+    function makeMove(row, col) {
+        if (!validateConnected() || !state.currentGame) {
+            return;
+        }
+
+        if (!canPlayCell(row, col)) {
+            return;
+        }
+
+        state.stompClient.send("/app/move", {}, JSON.stringify({
+            gameId: state.currentGame.gameId,
+            x: row,
+            y: col
+        }));
+        appendLog("Movimiento enviado: [" + row + "," + col + "]");
+    }
+
+    function subscribeToGame(gameId) {
+        if (!validateConnected()) {
+            return;
+        }
+
+        if (state.gameSubscription) {
+            state.gameSubscription.unsubscribe();
+        }
+
+        state.gameSubscription = state.stompClient.subscribe("/topic/game-progress/" + gameId, (message) => {
+            const game = JSON.parse(message.body);
+            updateGame(game);
+            appendLog("Actualizacion recibida para la partida " + game.gameId + ".");
+        });
+    }
+
+    function updateGame(game) {
+        state.currentGame = game;
+        elements.gameIdValue.textContent = game.gameId || "-";
+        elements.statusValue.textContent = formatStatus(game.status);
+        elements.playerXValue.textContent = formatPlayer(game.playerX, "X");
+        elements.playerOValue.textContent = formatPlayer(game.playerO, "O");
+        elements.myMarkValue.textContent = state.myMark ? markToSymbol(state.myMark) : "-";
+        elements.turnValue.textContent = game.status === "IN_PROGRESS" ? markToSymbol(game.currentTurn) : "-";
+        showMessage(game.message || "Estado actualizado.", game.status === "FINISHED" ? "success" : "");
+        renderBoard();
+    }
+
+    function renderBoard() {
+        const cells = elements.board.querySelectorAll(".cell");
+        cells.forEach((cell) => {
+            const row = Number(cell.dataset.row);
+            const col = Number(cell.dataset.col);
+            const mark = state.currentGame && state.currentGame.board ? state.currentGame.board[row][col] : 0;
+            cell.textContent = markToSymbol(mark);
+            cell.disabled = !canPlayCell(row, col);
+        });
+    }
+
+    function canPlayCell(row, col) {
+        const game = state.currentGame;
+        if (!game || !state.connected || !state.myMark) {
+            return false;
+        }
+
+        if (game.status !== "IN_PROGRESS") {
+            return false;
+        }
+
+        if (game.currentTurn !== state.myMark) {
+            return false;
+        }
+
+        return game.board[row][col] === 0;
+    }
+
+    function setConnectionBadge(isConnected) {
+        elements.connectionBadge.textContent = isConnected ? "Conectado" : "Desconectado";
+        elements.connectionBadge.className = isConnected ? "badge" : "badge offline";
+    }
+
+    function validateConnected() {
+        if (!state.connected || !state.stompClient) {
+            showMessage("Primero debes conectarte al WebSocket.", "error");
+            return false;
+        }
+        return true;
+    }
+
+    function formatStatus(status) {
+        if (!status) {
+            return "-";
+        }
+
+        const labels = {
+            WAITING_FOR_PLAYER: "Esperando jugador",
+            IN_PROGRESS: "En curso",
+            FINISHED: "Finalizada"
+        };
+
+        return labels[status] || status;
+    }
+
+    function formatPlayer(player, fallbackMark) {
+        if (!player || !player.name) {
+            return "-";
+        }
+        const mark = player.mark ? markToSymbol(player.mark) : fallbackMark;
+        return player.name + " (" + mark + ")";
+    }
+
+    function markToSymbol(mark) {
+        if (mark === 1) {
+            return "X";
+        }
+        if (mark === 2) {
+            return "O";
+        }
+        return "";
+    }
+
+    function showMessage(text, type) {
+        elements.messageBox.textContent = text;
+        elements.messageBox.className = "message" + (type ? " " + type : "");
+    }
+
+    function appendLog(text) {
+        const timestamp = new Date().toLocaleTimeString();
+        elements.log.textContent += "[" + timestamp + "] " + text + "\n";
+        elements.log.scrollTop = elements.log.scrollHeight;
+    }
+
+    function resetGameView() {
+        elements.gameIdValue.textContent = "-";
+        elements.statusValue.textContent = "-";
+        elements.playerXValue.textContent = "-";
+        elements.playerOValue.textContent = "-";
+        elements.myMarkValue.textContent = "-";
+        elements.turnValue.textContent = "-";
+        renderBoard();
+    }
+
+    elements.connectBtn.addEventListener("click", connect);
+    elements.disconnectBtn.addEventListener("click", disconnect);
+    elements.createBtn.addEventListener("click", createGame);
+    elements.joinBtn.addEventListener("click", joinGame);
+    elements.copyGameIdBtn.addEventListener("click", async () => {
+        const gameId = state.currentGame && state.currentGame.gameId;
+        if (!gameId) {
+            showMessage("No hay gameId para copiar.", "error");
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(gameId);
+            showMessage("Game ID copiado al portapapeles.", "success");
+        } catch (error) {
+            showMessage("No se pudo copiar el gameId.", "error");
+        }
+    });
+
+    initBoard();
+</script>
+</body>
+</html>
